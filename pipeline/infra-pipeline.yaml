@@ -30,12 +30,18 @@ spec:
     # Step 1: Clone the repository
     - name: git-clone
       taskRef:
-        name: git-clone
-        kind: ClusterTask
+        resolver: cluster
+        params:
+          - name: kind
+            value: task
+          - name: name
+            value: git-clone
+          - name: namespace
+            value: openshift-pipelines
       params:
-        - name: url
+        - name: URL
           value: $(params.repo-url)
-        - name: revision
+        - name: REVISION
           value: $(params.repo-revision)
       workspaces:
         - name: output
