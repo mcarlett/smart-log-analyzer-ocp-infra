@@ -1,0 +1,115 @@
+apiVersion: opentelemetry.io/v1beta1
+kind: OpenTelemetryCollector
+metadata:
+  name: camel-otel-collector
+spec:
+  config:
+    extensions:
+      bearertokenauth:
+        filename: "/var/run/secrets/kubernetes.io/serviceaccount/token"
+    exporters:
+      debug: {}
+      otlphttp/loki:
+        endpoint: https://lokistack-camel-distributor-http:3100/otlp
+        tls:
+          ca_file: "/tls/lokistack-camel-ca-bundle/service-ca.crt"
+          insecure_skip_verify: true
+          cert_file: "/tls/lokistack-camel-gateway-client-http/tls.crt"
+          key_file: "/tls/lokistack-camel-gateway-client-http/tls.key"
+        auth:
+          authenticator: bearertokenauth
+        headers:
+          X-Scope-OrgID: "application"
+      otlp/tempo:
+        auth:
+          authenticator: bearertokenauth
+        endpoint: 'tempo-tempostack-camel-gateway:4317'
+        headers:
+          X-Scope-OrgID: application
+        tls:
+          ca_file: "/tls/tempostack-camel-ca-bundle/service-ca.crt"
+          insecure_skip_verify: true
+          cert_file: "/tls/tempostack-camel-gateway-client-http/tls.crt"
+          key_file: "/tls/tempostack-camel-gateway-client-http/tls.key"
+      kafka:
+        brokers:
+          - camel-cluster-kafka-brokers:9092
+        logs:
+          encoding: otlp_json
+        traces:
+          encoding: otlp_json
+    processors:
+      filter/error:
+        error_mode: ignore
+        logs:
+          log_record:
+            - 'severity_text != "ERROR"'
+      filter/healthcheck:
+        error_mode: ignore
+        traces:
+          span:
+            - 'name == "GET /actuator/health"'
+    receivers:
+      otlp:
+        protocols:
+          grpc: {}
+          http: {}
+    service:
+      extensions: [bearertokenauth]
+      pipelines:
+        logs:
+          receivers:
+            - otlp
+          exporters:
+            - debug
+            - otlphttp/loki
+            - kafka
+        traces:
+          receivers:
+            - otlp
+          processors:
+            - filter/healthcheck
+          exporters:
+            - debug
+            - otlp/tempo
+            - kafka
+  managementState: managed
+  ingress:
+    type: route
+  serviceAccount: camel-otel-collector
+  targetAllocator:
+    filterStrategy: relabel-config
+    allocationStrategy: consistent-hashing
+    prometheusCR:
+      scrapeInterval: 30s
+    collectorNotReadyGracePeriod: 30s
+    collectorTargetReloadInterval: 30s
+  replicas: 1
+  ipFamilyPolicy: SingleStack
+  configVersions: 3
+  volumes:
+    - name: lokistack-camel-ca-bundle
+      configMap:
+        name: lokistack-camel-ca-bundle
+    - name: lokistack-camel-gateway-client-http
+      secret:
+        secretName: lokistack-camel-gateway-client-http
+    - name: tempostack-camel-ca-bundle
+      configMap:
+        name: tempo-tempostack-camel-ca-bundle
+    - name: tempostack-camel-gateway-client-http
+      secret:
+        secretName: tempo-tempostack-camel-signing-ca
+  volumeMounts:
+    - name: lokistack-camel-ca-bundle
+      readOnly: true
+      mountPath: /tls/lokistack-camel-ca-bundle
+    - name: lokistack-camel-gateway-client-http
+      readOnly: true
+      mountPath: /tls/lokistack-camel-gateway-client-http
+    - name: tempostack-camel-ca-bundle
+      readOnly: true
+      mountPath: /tls/tempostack-camel-ca-bundle
+    - name: tempostack-camel-gateway-client-http
+      readOnly: true
+      mountPath: /tls/tempostack-camel-gateway-client-http

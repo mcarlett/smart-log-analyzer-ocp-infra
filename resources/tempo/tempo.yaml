@@ -1,0 +1,28 @@
+apiVersion: tempo.grafana.com/v1alpha1
+kind: TempoMonolithic
+metadata:
+  name: tempostack-camel
+spec:
+  multitenancy:
+    enabled: true
+    mode: openshift
+    authentication:
+      - tenantId: application
+        tenantName: application
+  tenants:
+    mode: openshift
+    authentication:
+      - tenantId: application
+        tenantName: application
+  resources:
+    limits:
+      cpu: '2'
+      memory: 2Gi
+    requests:
+      cpu: '500m'
+      memory: 512Mi
+  storage:
+    traces:
+      s3:
+        secret: tempostack-minio
+      size: 1Gi

@@ -1,0 +1,14 @@
+apiVersion: kafka.strimzi.io/v1beta2
+kind: KafkaNodePool
+metadata:
+  name: multirole
+  labels:
+    strimzi.io/cluster: camel-cluster
+spec:
+  roles:
+    - controller
+    - broker
+  storage:
+    type: ephemeral
+    kraftMetadata: shared
+  replicas: 1

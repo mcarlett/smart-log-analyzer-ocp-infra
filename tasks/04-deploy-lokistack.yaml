@@ -1,0 +1,30 @@
+apiVersion: tekton.dev/v1
+kind: Task
+metadata:
+  name: deploy-lokistack
+spec:
+  params:
+    - name: namespace
+      type: string
+      description: Target namespace for LokiStack deployment
+  workspaces:
+    - name: source
+      description: Workspace containing the infrastructure manifests
+  steps:
+    - name: apply-lokistack
+      image: quay.io/openshift/origin-cli:latest
+      script: |
+        #!/usr/bin/env bash
+        set -euo pipefail
+
+        NS="$(params.namespace)"
+        RESOURCES="$(workspaces.source.path)/resources/lokistack"
+
+        echo "Deploying LokiStack to namespace ${NS}..."
+        oc apply -n "${NS}" -f "${RESOURCES}/lokistack.yaml"
+
+        echo "Waiting for LokiStack to be ready..."
+        oc wait --for=condition=Ready lokistack/lokistack-camel \
+          -n "${NS}" --timeout=300s || echo "Warning: LokiStack not fully ready yet, continuing..."
+
+        echo "LokiStack deployed."

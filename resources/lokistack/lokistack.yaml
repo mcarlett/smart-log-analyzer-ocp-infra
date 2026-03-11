@@ -1,0 +1,23 @@
+kind: LokiStack
+apiVersion: loki.grafana.com/v1
+metadata:
+  name: lokistack-camel
+spec:
+  tenants:
+    mode: openshift-logging
+  managementState: Managed
+  limits:
+    global:
+      queries:
+        queryTimeout: 3m
+      retention:
+        days: 1
+  size: 1x.demo
+  storage:
+    schemas:
+      - effectiveDate: '2020-10-11'
+        version: v13
+    secret:
+      name: lokistack-minio
+      type: s3
+  storageClassName: standard-csi

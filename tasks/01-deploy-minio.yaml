@@ -1,0 +1,33 @@
+apiVersion: tekton.dev/v1
+kind: Task
+metadata:
+  name: deploy-minio
+spec:
+  params:
+    - name: namespace
+      type: string
+      description: Target namespace for MinIO deployment
+  workspaces:
+    - name: source
+      description: Workspace containing the infrastructure manifests
+  steps:
+    - name: apply-minio
+      image: quay.io/openshift/origin-cli:latest
+      script: |
+        #!/usr/bin/env bash
+        set -euo pipefail
+
+        NS="$(params.namespace)"
+        RESOURCES="$(workspaces.source.path)/resources/minio"
+
+        echo "Deploying MinIO to namespace ${NS}..."
+
+        oc apply -n "${NS}" -f "${RESOURCES}/pvc.yaml"
+        oc apply -n "${NS}" -f "${RESOURCES}/deployment.yaml"
+        oc apply -n "${NS}" -f "${RESOURCES}/service.yaml"
+        oc apply -n "${NS}" -f "${RESOURCES}/route.yaml"
+
+        echo "Waiting for MinIO deployment to be ready..."
+        oc rollout status deployment/minio -n "${NS}" --timeout=120s
+
+        echo "MinIO deployed successfully."

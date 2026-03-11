@@ -1,0 +1,139 @@
+apiVersion: tekton.dev/v1
+kind: Pipeline
+metadata:
+  name: deploy-infra
+spec:
+  params:
+    - name: repo-url
+      type: string
+      description: Git repository URL containing the infrastructure manifests
+    - name: repo-revision
+      type: string
+      description: Git revision (branch, tag, or commit SHA)
+      default: main
+    - name: namespace
+      type: string
+      description: Target namespace for infrastructure deployment
+      default: camel-otel-infra
+    - name: minio-user
+      type: string
+      default: "minioadmin"
+    - name: minio-password
+      type: string
+      default: "minioadmin"
+
+  workspaces:
+    - name: shared-workspace
+      description: Shared workspace for git clone and manifest files
+
+  tasks:
+    # Step 1: Clone the repository
+    - name: git-clone
+      taskRef:
+        name: git-clone
+        kind: ClusterTask
+      params:
+        - name: url
+          value: $(params.repo-url)
+        - name: revision
+          value: $(params.repo-revision)
+      workspaces:
+        - name: output
+          workspace: shared-workspace
+
+    # Step 2: Deploy MinIO (PVC, Deployment, Service, Route)
+    - name: deploy-minio
+      runAfter:
+        - git-clone
+      taskRef:
+        name: deploy-minio
+      params:
+        - name: namespace
+          value: $(params.namespace)
+      workspaces:
+        - name: source
+          workspace: shared-workspace
+
+    # Step 3: Create MinIO buckets (lokistack, tempostack)
+    - name: create-minio-buckets
+      runAfter:
+        - deploy-minio
+      taskRef:
+        name: create-minio-buckets
+      params:
+        - name: namespace
+          value: $(params.namespace)
+        - name: minio-endpoint
+          value: "http://minio-api.$(params.namespace).svc.cluster.local:9000"
+        - name: minio-user
+          value: $(params.minio-user)
+        - name: minio-password
+          value: $(params.minio-password)
+
+    # Step 4: Create secrets for LokiStack and TempoStack
+    - name: create-secrets
+      runAfter:
+        - create-minio-buckets
+      taskRef:
+        name: create-secrets
+      params:
+        - name: namespace
+          value: $(params.namespace)
+        - name: minio-user
+          value: $(params.minio-user)
+        - name: minio-password
+          value: $(params.minio-password)
+
+    # Step 5a: Deploy LokiStack (runs in parallel with Tempo and Kafka)
+    - name: deploy-lokistack
+      runAfter:
+        - create-secrets
+      taskRef:
+        name: deploy-lokistack
+      params:
+        - name: namespace
+          value: $(params.namespace)
+      workspaces:
+        - name: source
+          workspace: shared-workspace
+
+    # Step 5b: Deploy Tempo (runs in parallel with LokiStack and Kafka)
+    - name: deploy-tempo
+      runAfter:
+        - create-secrets
+      taskRef:
+        name: deploy-tempo
+      params:
+        - name: namespace
+          value: $(params.namespace)
+      workspaces:
+        - name: source
+          workspace: shared-workspace
+
+    # Step 5c: Deploy Kafka (runs in parallel with LokiStack and Tempo)
+    - name: deploy-kafka
+      runAfter:
+        - create-secrets
+      taskRef:
+        name: deploy-kafka
+      params:
+        - name: namespace
+          value: $(params.namespace)
+      workspaces:
+        - name: source
+          workspace: shared-workspace
+
+    # Step 6: Deploy OTel Collector (depends on LokiStack, Tempo, and Kafka)
+    - name: deploy-otel-collector
+      runAfter:
+        - deploy-lokistack
+        - deploy-tempo
+        - deploy-kafka
+      taskRef:
+        name: deploy-otel-collector
+      params:
+        - name: namespace
+          value: $(params.namespace)
+      workspaces:
+        - name: source
+          workspace: shared-workspace

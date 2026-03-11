@@ -1,0 +1,27 @@
+apiVersion: tekton.dev/v1
+kind: PipelineRun
+metadata:
+  generateName: deploy-infra-run-
+spec:
+  pipelineRef:
+    name: deploy-infra
+  params:
+    - name: repo-url
+      value: https://github.com/mcarlett/smart-log-analyzer-ocp-infra.git
+    - name: repo-revision
+      value: main
+    - name: namespace
+      value: camel-otel-infra
+    - name: minio-user
+      value: minioadmin
+    - name: minio-password
+      value: minioadmin
+  workspaces:
+    - name: shared-workspace
+      volumeClaimTemplate:
+        spec:
+          accessModes:
+            - ReadWriteOnce
+          resources:
+            requests:
+              storage: 100Mi

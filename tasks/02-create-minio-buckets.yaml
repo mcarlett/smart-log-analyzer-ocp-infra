@@ -1,0 +1,49 @@
+apiVersion: tekton.dev/v1
+kind: Task
+metadata:
+  name: create-minio-buckets
+spec:
+  params:
+    - name: namespace
+      type: string
+      description: Namespace where MinIO is deployed
+    - name: minio-endpoint
+      type: string
+      description: MinIO API endpoint
+      default: "http://minio-api:9000"
+    - name: minio-user
+      type: string
+      default: "minioadmin"
+    - name: minio-password
+      type: string
+      default: "minioadmin"
+    - name: buckets
+      type: string
+      description: Space-separated list of bucket names to create
+      default: "lokistack tempostack"
+  steps:
+    - name: create-buckets
+      image: quay.io/minio/mc:latest
+      script: |
+        #!/usr/bin/env sh
+        set -eu
+
+        ENDPOINT="$(params.minio-endpoint)"
+        USER="$(params.minio-user)"
+        PASSWORD="$(params.minio-password)"
+        BUCKETS="$(params.buckets)"
+
+        echo "Configuring MinIO client..."
+        mc alias set myminio "${ENDPOINT}" "${USER}" "${PASSWORD}"
+
+        for BUCKET in ${BUCKETS}; do
+          if mc ls "myminio/${BUCKET}" > /dev/null 2>&1; then
+            echo "Bucket '${BUCKET}' already exists, skipping."
+          else
+            echo "Creating bucket '${BUCKET}'..."
+            mc mb "myminio/${BUCKET}"
+          fi
+        done
+
+        echo "Buckets ready:"
+        mc ls myminio/
