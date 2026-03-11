@@ -75,14 +75,19 @@ LokiStack, Tempo, and Kafka are deployed in parallel after secrets are created. 
 ## Prerequisites
 
 - OpenShift 4 cluster
-- Tekton Pipelines (OpenShift Pipelines operator) installed
-- The following operators installed on the cluster:
-  - **Loki Operator** (for LokiStack)
-  - **Tempo Operator** (for TempoMonolithic)
-  - **AMQ Streams / Strimzi** (for Kafka)
-  - **OpenTelemetry Operator** (for OTel Collector)
-- `git-clone` ClusterTask available
 - Tekton CLI (`tkn`) (optional, for monitoring runs)
+
+## Required Operators
+
+The following operators must be installed from the OperatorHub before running the pipeline. All operators should show `Succeeded` phase.
+
+| Operator | Required by |
+|---|---|
+| **Red Hat OpenShift Pipelines** | Pipeline execution, `git-clone` ClusterTask |
+| **Loki Operator** | LokiStack (log aggregation) |
+| **Tempo Operator** | TempoMonolithic (distributed tracing) |
+| **Streams for Apache Kafka** | Kafka cluster |
+| **Red Hat build of OpenTelemetry** | OpenTelemetry Collector |
 
 ## Usage
 
