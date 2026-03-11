@@ -143,19 +143,17 @@ oc new-project camel-otel-infra
 # Apply the scoped ClusterRole and ClusterRoleBinding for the pipeline and Job ServiceAccounts
 oc apply -f "${REPO_RAW}/resources/rbac/pipeline-clusterrole.yaml"
 oc apply -f "${REPO_RAW}/resources/rbac/pipeline-clusterrolebinding.yaml"
-oc adm policy add-cluster-role-to-user deploy-infra-pipeline system:serviceaccount:camel-otel-infra:deploy-infra
 
-# Start the Job (clones the repo, applies tasks/pipeline, triggers a PipelineRun, and waits for completion)
+# Start the Job (creates the ServiceAccount, clones the repo, applies tasks/pipeline, triggers a PipelineRun, and waits for completion)
 oc apply -f "${REPO_RAW}/job/deploy-infra-job.yaml"
 
-# Follow the Job logs
+# Bind the ClusterRole to the Job's ServiceAccount
+oc adm policy add-cluster-role-to-user deploy-infra-pipeline system:serviceaccount:camel-otel-infra:deploy-infra
+
+# Wait for the Job pod to start, then follow logs
+oc wait --for=condition=Ready pod -l job-name=deploy-infra --timeout=60s
 oc logs -f job/deploy-infra
-
-# Follow the PipelineRun logs (optional)
-tkn pipelinerun logs -f -L
 ```
-
-The Job is automatically cleaned up 5 minutes after completion (`ttlSecondsAfterFinished: 300`).
 
 The Job is automatically cleaned up 5 minutes after completion (`ttlSecondsAfterFinished: 300`).
 

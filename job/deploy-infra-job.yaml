@@ -22,29 +22,24 @@ spec:
               valueFrom:
                 fieldRef:
                   fieldPath: metadata.namespace
-            - name: REPO_URL
-              value: "https://github.com/mcarlett/smart-log-analyzer-ocp-infra.git"
-            - name: REPO_REVISION
-              value: "main"
+            - name: REPO_RAW
+              value: "https://raw.githubusercontent.com/mcarlett/smart-log-analyzer-ocp-infra/main"
           command:
             - /bin/bash
             - -c
             - |
               set -euo pipefail
 
-              echo "=== Cloning repository ==="
-              cd /tmp
-              git clone --depth 1 --branch "${REPO_REVISION}" "${REPO_URL}" repo
-              cd repo
-
               echo "=== Applying Tekton tasks ==="
-              oc apply -n "${NAMESPACE}" -f tasks/
+              for TASK in 00-init-workspace 01-deploy-minio 02-create-minio-buckets 03-create-secrets 04-deploy-lokistack 05-deploy-tempo 06-deploy-kafka 07-deploy-otel-collector; do
+                oc apply -n "${NAMESPACE}" -f "${REPO_RAW}/tasks/${TASK}.yaml"
+              done
 
               echo "=== Applying Tekton pipeline ==="
-              oc apply -n "${NAMESPACE}" -f pipeline/
+              oc apply -n "${NAMESPACE}" -f "${REPO_RAW}/pipeline/infra-pipeline.yaml"
 
               echo "=== Starting PipelineRun ==="
-              PIPELINERUN=$(oc create -n "${NAMESPACE}" -f pipelinerun/infra-pipeline-run.yaml -o name)
+              PIPELINERUN=$(oc create -n "${NAMESPACE}" -f "${REPO_RAW}/pipelinerun/infra-pipeline-run.yaml" -o name)
               echo "Created ${PIPELINERUN}"
 
               echo "=== Waiting for PipelineRun to complete ==="
