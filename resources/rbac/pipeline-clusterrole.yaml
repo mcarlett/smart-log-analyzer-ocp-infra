@@ -1,0 +1,83 @@
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: deploy-infra-pipeline
+rules:
+  # Core resources: PVC, Service, ServiceAccount, Secret
+  - apiGroups: [""]
+    resources:
+      - persistentvolumeclaims
+      - services
+      - serviceaccounts
+      - secrets
+    verbs: ["get", "list", "watch", "create", "update", "patch"]
+
+  # Deployments
+  - apiGroups: ["apps"]
+    resources:
+      - deployments
+    verbs: ["get", "list", "watch", "create", "update", "patch"]
+
+  # OpenShift Routes
+  - apiGroups: ["route.openshift.io"]
+    resources:
+      - routes
+    verbs: ["get", "list", "watch", "create", "update", "patch"]
+
+  # ClusterRoles and ClusterRoleBindings (for Tempo RBAC)
+  - apiGroups: ["rbac.authorization.k8s.io"]
+    resources:
+      - clusterroles
+      - clusterrolebindings
+    verbs: ["get", "list", "watch", "create", "update", "patch"]
+
+  # TokenReview and SubjectAccessReview (required by Tempo OpenShift tenancy)
+  - apiGroups: ["authentication.k8s.io"]
+    resources:
+      - tokenreviews
+    verbs: ["create"]
+  - apiGroups: ["authorization.k8s.io"]
+    resources:
+      - subjectaccessreviews
+    verbs: ["create"]
+
+  # LokiStack
+  - apiGroups: ["loki.grafana.com"]
+    resources:
+      - lokistacks
+    verbs: ["get", "list", "watch", "create", "update", "patch"]
+
+  # TempoMonolithic
+  - apiGroups: ["tempo.grafana.com"]
+    resources:
+      - tempomonolithics
+    verbs: ["get", "list", "watch", "create", "update", "patch"]
+
+  # Tempo trace access (needed to grant these permissions via ClusterRoles)
+  - apiGroups: ["tempo.grafana.com"]
+    resources:
+      - application
+    resourceNames:
+      - traces
+    verbs: ["get", "create"]
+
+  # Kafka (Strimzi)
+  - apiGroups: ["kafka.strimzi.io"]
+    resources:
+      - kafkas
+      - kafkanodepools
+    verbs: ["get", "list", "watch", "create", "update", "patch"]
+
+  # OpenTelemetry Collector
+  - apiGroups: ["opentelemetry.io"]
+    resources:
+      - opentelemetrycollectors
+    verbs: ["get", "list", "watch", "create", "update", "patch"]
+
+  # Tekton resources (needed by the deploy Job to create tasks, pipelines, and runs)
+  - apiGroups: ["tekton.dev"]
+    resources:
+      - tasks
+      - pipelines
+      - pipelineruns
+    verbs: ["get", "list", "watch", "create", "update", "patch"]

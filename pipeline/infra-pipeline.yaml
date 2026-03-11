@@ -27,8 +27,18 @@ spec:
       description: Shared workspace for git clone and manifest files
 
   tasks:
+    # Step 0: Initialize workspace permissions
+    - name: init-workspace
+      taskRef:
+        name: init-workspace
+      workspaces:
+        - name: source
+          workspace: shared-workspace
+
     # Step 1: Clone the repository
     - name: git-clone
+      runAfter:
+        - init-workspace
       taskRef:
         resolver: cluster
         params:
@@ -43,6 +53,10 @@ spec:
           value: $(params.repo-url)
         - name: REVISION
           value: $(params.repo-revision)
+        - name: DELETE_EXISTING
+          value: "true"
+        - name: SUBDIRECTORY
+          value: repo
       workspaces:
         - name: output
           workspace: shared-workspace
@@ -59,6 +73,7 @@ spec:
       workspaces:
         - name: source
           workspace: shared-workspace
+          subPath: repo
 
     # Step 3: Create MinIO buckets (lokistack, tempostack)
     - name: create-minio-buckets
@@ -102,6 +117,7 @@ spec:
       workspaces:
         - name: source
           workspace: shared-workspace
+          subPath: repo
 
     # Step 5b: Deploy Tempo (runs in parallel with LokiStack and Kafka)
     - name: deploy-tempo
@@ -115,6 +131,7 @@ spec:
       workspaces:
         - name: source
           workspace: shared-workspace
+          subPath: repo
 
     # Step 5c: Deploy Kafka (runs in parallel with LokiStack and Tempo)
     - name: deploy-kafka
@@ -128,6 +145,7 @@ spec:
       workspaces:
         - name: source
           workspace: shared-workspace
+          subPath: repo
 
     # Step 6: Deploy OTel Collector (depends on LokiStack, Tempo, and Kafka)
     - name: deploy-otel-collector
@@ -143,3 +161,4 @@ spec:
       workspaces:
         - name: source
           workspace: shared-workspace
+          subPath: repo

@@ -26,9 +26,8 @@ spec:
         echo "Deploying OpenTelemetry Collector to namespace ${NS}..."
         oc apply -n "${NS}" -f "${RESOURCES}/collector.yaml"
 
-        echo "Waiting for OpenTelemetry Collector to be ready..."
-        oc wait --for=condition=Ready \
-          opentelemetrycollector/camel-otel-collector \
-          -n "${NS}" --timeout=300s || echo "Warning: OTel Collector not fully ready yet, continuing..."
+        echo "Waiting for OpenTelemetry Collector deployment to be ready..."
+        oc rollout status deployment/camel-otel-collector-collector \
+          -n "${NS}" --timeout=300s
 
         echo "OpenTelemetry Collector deployed."

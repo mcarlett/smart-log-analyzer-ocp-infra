@@ -97,6 +97,10 @@ The following operators must be installed from the OperatorHub before running th
 # Create the target namespace
 oc new-project camel-otel-infra
 
+# Apply the scoped ClusterRole and ClusterRoleBinding for the pipeline ServiceAccount
+# If using a custom namespace, edit resources/rbac/pipeline-clusterrolebinding.yaml first
+oc apply -f resources/rbac/
+
 # Apply tasks and pipeline
 oc apply -f tasks/
 oc apply -f pipeline/
@@ -126,6 +130,35 @@ tkn pipeline start deploy-infra \
   -w name=shared-workspace,volumeClaimTemplateFile=pipelinerun/infra-pipeline-run.yaml
 ```
 
+### Alternative: Deploy via Job
+
+A Kubernetes Job can automate the full setup by cloning the repo, applying the Tekton tasks and pipeline, and triggering a PipelineRun. This can be run from anywhere without cloning the repo locally:
+
+```bash
+REPO_RAW="https://raw.githubusercontent.com/mcarlett/smart-log-analyzer-ocp-infra/main"
+
+# Create the target namespace
+oc new-project camel-otel-infra
+
+# Apply the scoped ClusterRole and ClusterRoleBinding for the pipeline and Job ServiceAccounts
+oc apply -f "${REPO_RAW}/resources/rbac/pipeline-clusterrole.yaml"
+oc apply -f "${REPO_RAW}/resources/rbac/pipeline-clusterrolebinding.yaml"
+oc adm policy add-cluster-role-to-user deploy-infra-pipeline system:serviceaccount:camel-otel-infra:deploy-infra
+
+# Start the Job (clones the repo, applies tasks/pipeline, triggers a PipelineRun, and waits for completion)
+oc apply -f "${REPO_RAW}/job/deploy-infra-job.yaml"
+
+# Follow the Job logs
+oc logs -f job/deploy-infra
+
+# Follow the PipelineRun logs (optional)
+tkn pipelinerun logs -f -L
+```
+
+The Job is automatically cleaned up 5 minutes after completion (`ttlSecondsAfterFinished: 300`).
+
+The Job is automatically cleaned up 5 minutes after completion (`ttlSecondsAfterFinished: 300`).
+
 ## Data Flow
 
 ```
@@ -154,3 +187,16 @@ Default values used by the pipeline:
 | Tempo trace storage | 1Gi |
 | Kafka replicas | 1 (1Gi persistent) |
 | Log/trace retention | 1 day / 24 hours |
+
+## Cleanup
+
+To remove all deployed resources:
+
+```bash
+# Delete the namespace (removes all namespaced resources)
+oc delete project camel-otel-infra
+
+# Delete cluster-scoped resources
+oc delete clusterrole tempo-traces-reader tempo-traces-write deploy-infra-pipeline
+oc delete clusterrolebinding tempo-traces-reader tempo-traces-from-otel deploy-infra-pipeline
+```

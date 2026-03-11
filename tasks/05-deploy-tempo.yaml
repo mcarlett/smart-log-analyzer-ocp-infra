@@ -20,11 +20,11 @@ spec:
         NS="$(params.namespace)"
         RESOURCES="$(workspaces.source.path)/resources/tempo"
 
+        echo "Deploying Tempo RBAC roles..."
+        sed "s/camel-otel-infra/${NS}/g" "${RESOURCES}/tempo-roles.yaml" | oc apply -f -
+
         echo "Deploying TempoMonolithic to namespace ${NS}..."
         oc apply -n "${NS}" -f "${RESOURCES}/tempo.yaml"
-
-        echo "Deploying Tempo RBAC roles..."
-        oc apply -f "${RESOURCES}/tempo-roles.yaml"
 
         echo "Waiting for TempoMonolithic to be ready..."
         oc wait --for=condition=Ready tempomonolithic/tempostack-camel \
