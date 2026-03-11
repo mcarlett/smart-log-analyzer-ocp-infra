@@ -18,7 +18,7 @@ smart-log-analyzer-ocp-infra/
 │   │   ├── tempo.yaml                  # TempoMonolithic CR (multi-tenant)
 │   │   └── tempo-roles.yaml            # ClusterRoles/Bindings for traces
 │   ├── kafka/
-│   │   ├── kafka-nodepool.yaml         # KafkaNodePool (KRaft, ephemeral)
+│   │   ├── kafka-nodepool.yaml         # KafkaNodePool (KRaft, 1Gi persistent)
 │   │   └── kafka-cluster.yaml          # Kafka cluster (plain + TLS + route)
 │   └── otel-collector/
 │       ├── serviceaccount.yaml         # ServiceAccount for bearer token auth
@@ -147,5 +147,5 @@ Default values used by the pipeline:
 | MinIO storage | 2Gi PVC |
 | LokiStack size | `1x.demo` |
 | Tempo trace storage | 1Gi |
-| Kafka replicas | 1 (ephemeral) |
+| Kafka replicas | 1 (1Gi persistent) |
 | Log/trace retention | 1 day / 24 hours |
